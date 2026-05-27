@@ -1,0 +1,193 @@
+# Note: Set OPENAI_API_KEY in your environment before running:
+# export OPENAI_API_KEY=sk-your-key-here
+# Then run: docker compose up -d
+
+services:
+  # PostgreSQL Database with security hardening
+  postgres:
+    image: postgres:18-alpine
+    container_name: litellm_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-litellm}
+      POSTGRES_USER: ${POSTGRES_USER:-litellm_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-litellm_default_password_change_in_production}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.utf8"
+      # Security: Disable trust authentication
+      POSTGRES_HOST_AUTH_METHOD: ${POSTGRES_HOST_AUTH_METHOD:-scram-sha-256}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ../config/litellm-init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      - ../config/certs:/postgres_certs:ro
+    command: >
+      postgres
+      -c ssl=on
+      -c ssl_cert_file=/postgres_certs/server.crt
+      -c ssl_key_file=/postgres_certs/server.key
+    networks:
+      - litellm-net
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-litellm_user} -d ${POSTGRES_DB:-litellm}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    # Security: Run as non-root user
+    user: postgres
+    # Security: Read-only root filesystem (except data volume)
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    # Security: Drop all capabilities
+    cap_drop:
+      - ALL
+    # Security: Prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    # Resource limits sized for a 6 CPU / 16 GB host
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1.5G
+        reservations:
+          cpus: "0.25"
+          memory: 512M
+
+  # LiteLLM Proxy with security hardening
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: litellm_proxy
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${LITELLM_PORT:-4000}:4000"
+    environment:
+      # Database connection with SSL - https://jdbc.postgresql.org/documentation/ssl/
+      DATABASE_URL: postgresql://${POSTGRES_USER:-litellm_user}:${POSTGRES_PASSWORD:-litellm_default_password_change_in_production}@postgres:5432/${POSTGRES_DB:-litellm}?sslmode=prefer
+
+      # Security: Master key for admin access (REQUIRED)
+      # Set this in your environment or it will be auto-generated
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-1234567890abcdef}
+
+      # Security: Salt key for encrypting API credentials (CANNOT be changed after first use)
+      # Set this in your environment or it will use a default (NOT RECOMMENDED for production)
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY:-default-salt-key-change-in-production}
+
+      # LLM Provider API Keys (REQUIRED - set in your environment)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Please set OPENAI_API_KEY environment variable}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:?Please set MISTRAL_API_KEY environment variable}
+
+      # Security: Enable SSL verification
+      SSL_VERIFY: ${SSL_VERIFY:-true}
+
+      # Security: Store API keys encrypted in database
+      STORE_MODEL_IN_DB: "True"
+
+      # Logging and monitoring
+      LITELLM_LOG: ${LITELLM_LOG:-INFO}
+
+      # Security: Set allowed origins for CORS
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:4000}
+
+      # Security: Disable telemetry for data privacy
+      LITELLM_TELEMETRY: ${LITELLM_TELEMETRY:-False}
+
+      # Security: Enable request logging for audit trail
+      LITELLM_REQUEST_LOGS: ${LITELLM_REQUEST_LOGS:-True}
+
+      # Performance: Set worker count based on CPU cores
+      WORKER_COUNT: ${WORKER_COUNT:-4}
+
+      # Timezone
+      TZ: ${TZ:-UTC}
+    volumes:
+      - ../config/litellm_config.yaml:/app/config.yaml:ro
+      - litellm_logs:/app/logs
+      - litellm_cache:/app/cache
+    networks:
+      - litellm-net
+      - presidio-net
+    command: >
+      --config /app/config.yaml
+      --port 4000
+      --num_workers ${WORKER_COUNT:-4}
+      --detailed_debug
+    healthcheck:
+    # unauthenticated - http://localhost:4000/health/liveliness
+      test:
+        [
+          "CMD-SHELL",
+          "python3 -c \"import urllib.request; urllib.request.urlopen(urllib.request.Request('http://localhost:4000/health', headers={'Authorization': 'Bearer ${LITELLM_MASTER_KEY}'}))\" || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Security: Drop all capabilities
+    cap_drop:
+      - ALL
+    # Security: Prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    # Resource limits sized for a 6 CPU / 16 GB host
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 3G
+        reservations:
+          cpus: "0.5"
+          memory: 1G
+
+  # Optional: Redis for caching (recommended for production)
+  redis:
+    image: redis:8-alpine
+    container_name: litellm_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-redis_default_password_change_in_production}
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - redis_data:/data
+    networks:
+      - litellm-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    # Security: Run as non-root user
+    user: redis
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+    # Security: Drop all capabilities
+    cap_drop:
+      - ALL
+    # Security: Prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    # Resource limits sized for a 6 CPU / 16 GB host
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 1.5G
+        reservations:
+          cpus: "0.25"
+          memory: 512M

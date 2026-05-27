@@ -1,5 +1,6 @@
 services:
   presidio-analyzer:
+    container_name: presidio-analyzer
     image: mcr.microsoft.com/presidio-analyzer:latest
     ports:
       - "5002:3000"
@@ -8,21 +9,38 @@ services:
     networks:
       - presidio-net
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS -X GET http://localhost:3000/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 768M
 
   presidio-anonymizer:
+    container_name: presidio-anonymizer
     image: mcr.microsoft.com/presidio-anonymizer:latest
     ports:
       - "5001:3000"
     networks:
       - presidio-net
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS -X GET http://localhost:3000/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 768M
+        reservations:
+          cpus: "0.1"
+          memory: 256M

@@ -1,7 +1,10 @@
 include:
+  - compose/volumes.yml
   - compose/networks.yml
   - compose/ollama.yml
-  #- compose/open-webui.yml
-  - compose/lobe-chat.yml
   - compose/presidio.yml
   #- compose/chromadb.yml
+  #- compose/milvus.yml
+  - compose/litellm.yml
+  - compose/open-webui.yml
+  - compose/lobe-chat.yml

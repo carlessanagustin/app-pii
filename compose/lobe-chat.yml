@@ -8,7 +8,7 @@ services:
     networks:
       - ollama-net
       - presidio-net
-      - chroma-net
+      #- chroma-net
     ports:
       - "3210:3210"
     healthcheck:
@@ -27,3 +27,11 @@ services:
     environment:
       ENABLED_OLLAMA: "1"
       OLLAMA_PROXY_URL: http://ollama:11434
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1.5G
+        reservations:
+          cpus: "0.25"
+          memory: 512M

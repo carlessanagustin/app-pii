@@ -1,7 +1,18 @@
 networks:
   chroma-net:
     driver: bridge
+  milvus-net:
+    driver: bridge
   ollama-net:
+    driver: bridge
+  owebui-net:
     driver: bridge
   presidio-net:
     driver: bridge
+  litellm-net:
+    driver: bridge
+    #driver_opts:
+    #  com.docker.network.bridge.name: litellm0
+    #ipam:
+    #  config:
+    #    - subnet: 172.28.0.0/16

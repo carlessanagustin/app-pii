@@ -1,0 +1,227 @@
+# LiteLLM Proxy Configuration - Security Hardened
+# Documentation: https://docs.litellm.ai/docs/proxy/configs
+
+model_list:
+  - model_name: mistral-small-latest
+    litellm_params:
+      model: mistral/mistral-small-latest
+      api_key: "os.environ/MISTRAL_API_KEY" # ensure you have `MISTRAL_API_KEY` in your .env
+  - model_name: "gpt-oss:20b"
+    litellm_params:
+      model: "gpt-oss:20b"
+      api_base: "http://ollama:11434"
+      ssl_verify: false
+  - model_name: "llama3.1:latest"
+    litellm_params:
+      model: "llama3.1:latest"
+      api_base: "http://ollama:11434"
+      ssl_verify: false
+  ## Current OpenAI Models (2026) - Recommended
+  #- model_name: gpt-5.2
+  #  litellm_params:
+  #    model: openai/gpt-5.2
+  #    api_key: os.environ/OPENAI_API_KEY
+  #    timeout: 120
+  #    max_retries: 3
+  #
+  - model_name: gpt-5-mini
+    litellm_params:
+      model: openai/gpt-5-mini
+      api_key: os.environ/OPENAI_API_KEY
+      timeout: 60
+      max_retries: 3
+  #- model_name: gpt-5-nano
+  #  litellm_params:
+  #    model: openai/gpt-5-nano
+  #    api_key: os.environ/OPENAI_API_KEY
+  #    timeout: 60
+  #    max_retries: 3
+  #
+  #- model_name: gpt-4.1
+  #  litellm_params:
+  #    model: openai/gpt-4.1
+  #    api_key: os.environ/OPENAI_API_KEY
+  #    timeout: 60
+  #    max_retries: 3
+  # Anthropic
+  # - model_name: claude-3-5-sonnet
+  #   litellm_params:
+  #     model: anthropic/claude-3-5-sonnet-20241022
+  #     api_key: os.environ/ANTHROPIC_API_KEY
+  #     timeout: 60
+  #     max_retries: 3
+
+guardrails:
+  - guardrail_name: "presidio-pii"
+    litellm_params:
+      default_on: true
+      guardrail: presidio
+      mode: "pre_call"
+      presidio_analyzer_api_base: "http://presidio-analyzer:3000/"
+      presidio_anonymizer_api_base: "http://presidio-anonymizer:3000/"
+      presidio_language: "en"
+#      presidio_score_thresholds:
+#        PERSON: 0.1
+#      pii_entities_config:
+#        CREDIT_CARD: "MASK"
+#        EMAIL_ADDRESS: "MASK"
+#        US_SSN: "MASK"
+#        PERSON: "BLOCK"
+
+# Router settings for load balancing and fallbacks
+router_settings:
+  # Routing strategy: "least-busy" | "simple-shuffle" | "latency-based-routing" | "usage-based-routing"
+  routing_strategy: least-busy
+  
+  # Retry failed requests
+  num_retries: 3
+  
+  # Timeout for requests (seconds)
+  timeout: 60
+  
+  # Enable fallback models
+  enable_pre_call_checks: true
+  
+  # Cooldown period for failed models (seconds)
+  cooldown_time: 60
+
+# General settings for the proxy server
+general_settings:
+  # Security: Master key for admin access (set via environment variable)
+  master_key: os.environ/LITELLM_MASTER_KEY
+  
+  # Security: Database URL for storing keys, users, teams (set via environment variable)
+  database_url: os.environ/DATABASE_URL
+  
+  # Security: Enable database connection pooling
+  database_connection_pool_limit: 100
+  database_connection_timeout: 60
+  
+  # Security: Enable key-based authentication
+  disable_spend_logs: false
+  disable_master_key_return: true
+  disable_reset_budget: false
+  
+  # Security: Enable team-based access control
+  enable_team_based_routing: true
+  
+  # Security: Set default team budget (USD)
+  max_budget: 100.0
+  
+  # Security: Enable audit logs
+  store_audit_logs: true
+  
+  # Security: Set token limits per request
+  max_request_size_mb: 10
+  
+  # Performance: Enable caching with Redis
+  cache: true
+  cache_type: redis
+  redis_host: redis
+  redis_port: 6379
+  redis_password: os.environ/REDIS_PASSWORD
+  
+  # Performance: Cache TTL (seconds)
+  cache_params:
+    ttl: 3600
+    type: redis
+  
+  # Security: Enable rate limiting
+  global_rate_limit_per_minute: 1000
+  
+  # Security: Enable content moderation
+  enable_content_moderation: true
+  
+  # Security: Set custom headers for security
+  custom_headers:
+    X-Content-Type-Options: nosniff
+    X-Frame-Options: DENY
+    X-XSS-Protection: "1; mode=block"
+    Strict-Transport-Security: "max-age=31536000; includeSubDomains"
+    Content-Security-Policy: "default-src 'self'"
+  
+  # Monitoring: Enable Prometheus metrics
+  enable_prometheus: true
+  
+  # Monitoring: Enable health checks
+  health_check: true
+  
+  # Security: Set allowed IPs (optional, commented out by default)
+  # allowed_ips: ["127.0.0.1", "10.0.0.0/8"]
+  
+  # Security: Enable webhook for alerts
+  # webhook_url: os.environ/WEBHOOK_URL
+  
+  # Privacy: Disable success callbacks
+  success_callback: []
+  
+  # Privacy: Disable failure callbacks (or set to your secure endpoint)
+  failure_callback: []
+
+# LiteLLM module settings
+litellm_settings:
+  # Security: Enable SSL verification (can be disabled for internal networks)
+  ssl_verify: true
+  
+  # Security: Set default timeout
+  request_timeout: 60
+  
+  # Security: Drop API key params from logs
+  drop_params: true
+  
+  # Security: Redact messages from logs (PII protection)
+  turn_off_message_logging: false
+  redact_messages_in_exceptions: true
+  redact_user_api_key_info: true
+  
+  # Performance: Set retry strategy
+  num_retries: 3
+  
+  # Performance: Enable fallback models
+  fallbacks: []
+  
+  # Performance: Set context window fallbacks
+  enable_loadbalancing_on_context_window_limits: true
+  
+  # Security: Set allowed model names (optional)
+  # allowed_model_names: ["gpt-4", "gpt-3.5-turbo", "claude-3"]
+  
+  # Monitoring: Set callbacks for logging
+  # callbacks: ["prometheus"]
+
+# Environment variables configuration
+environment_variables:
+  # These should be set in .env file or passed as environment variables
+  # Security critical variables
+  LITELLM_MASTER_KEY:
+    description: "Master key for admin access (must start with sk-)"
+    required: true
+  
+  LITELLM_SALT_KEY:
+    description: "Salt key for encrypting API credentials (cannot change after setup)"
+    required: true
+  
+  POSTGRES_PASSWORD:
+    description: "PostgreSQL database password"
+    required: true
+  
+  REDIS_PASSWORD:
+    description: "Redis cache password"
+    required: true
+  
+  # LLM Provider API keys (uncomment as needed)
+  # OPENAI_API_KEY:
+  #   description: "OpenAI API key"
+  #   required: false
+  
+  # ANTHROPIC_API_KEY:
+  #   description: "Anthropic API key"
+  #   required: false
+  
+  # AZURE_API_KEY:
+  #   description: "Azure OpenAI API key"
+  #   required: false
+  
+  # AZURE_API_BASE:
+  #   description: "Azure OpenAI API base URL"
+  #   required: false

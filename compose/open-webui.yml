@@ -1,6 +1,6 @@
 services:
   open-webui:
-    image: ghcr.io/open-webui/open-webui:v0.9.2
+    image: ghcr.io/open-webui/open-webui:v0.9.5
     restart: unless-stopped
     container_name: open-webui
     ports:
@@ -17,8 +17,9 @@ services:
       - ollama
     networks:
       - ollama-net
+      - owebui-net
       - presidio-net
-      - chroma-net
+      #- chroma-net
     environment:
       GLOBAL_LOG_LEVEL: WARNING
       OLLAMA_BASE_URL: http://ollama:11434
@@ -26,12 +27,27 @@ services:
       WEBUI_SECRET_KEY: t0p-s3cr3t
       WEBUI_AUTH: "False"
       ENABLE_WEB_SEARCH: "true"
-      WEB_SEARCH_ENGINE: serpapi
-      SERPAPI_API_KEY: ${SERPAPI_API_KEY}
-      SERPAPI_ENGINE: google
-      VECTOR_DB: chroma
-      CHROMA_HTTP_HOST: chromadb
-      CHROMA_HTTP_PORT: "8000"
-      MILVUS_URI: http://milvus-standalone:19530
-      MILVUS_DB: default
-      MILVUS_TOKEN: root:Milvus
+      WEB_LOADER_ENGINE: playwright
+      PLAYWRIGHT_WS_URL: ws://playwright:3000
+      #WEB_SEARCH_ENGINE: serpapi
+      #SERPAPI_API_KEY: ${SERPAPI_API_KEY}
+      #SERPAPI_ENGINE: google
+      #VECTOR_DB: chroma
+      #CHROMA_HTTP_HOST: chromadb
+      #CHROMA_HTTP_PORT: "8000"
+      #MILVUS_URI: http://milvus-standalone:19530
+      #MILVUS_DB: default
+      #MILVUS_TOKEN: root:Milvus
+
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.60.0-noble
+    container_name: playwright
+    command: npx -y playwright@1.58.0 run-server --port 3000 --host 0.0.0.0
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:3000/health" ]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    networks:
+      - owebui-net
