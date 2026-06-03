@@ -2,11 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Scope: this file covers the **`ppi/` package internals**. Repo-wide commands, Docker, Compose, and deployment notes live in `../CLAUDE.md` — read that first for the overall picture and don't duplicate it here.
+Scope: this file covers the **`pii/` package internals**. Repo-wide commands, Docker, Compose, and deployment notes live in `../CLAUDE.md` — read that first for the overall picture and don't duplicate it here.
 
 ## What this package is
 
-The runtime guts of the PII/PHI/PCI service. A FastAPI surface (`api.py`) and an argparse CLI (`cli.py`) both funnel into the same async coroutine `detect_entities(text, model, threshold)` in `agent.py`. Configuration constants (`PII_LABELS`, `SUPPORTED_MODELS`, `DEFAULT_*`, helpers) live one directory up in `../privatize_this_config.py` — `ppi/` imports them as `from privatize_this_config import ...`. Do not duplicate those constants into the package; keep that module as the single source of truth.
+The runtime guts of the PII/PHI/PCI service. A FastAPI surface (`api.py`) and an argparse CLI (`cli.py`) both funnel into the same async coroutine `detect_entities(text, model, threshold)` in `agent.py`. Configuration constants (`PII_LABELS`, `SUPPORTED_MODELS`, `DEFAULT_*`, helpers) live one directory up in `../privatize_this_config.py` — `pii/` imports them as `from privatize_this_config import ...`. Do not duplicate those constants into the package; keep that module as the single source of truth.
 
 ## End-to-end call path
 
@@ -28,7 +28,7 @@ The two backends converge on the same `list[Entity]` shape (`label`, `start`, `e
 
 ## Non-obvious wiring (read before editing)
 
-- **Importing `ppi.gliner_provider` has side effects.** At module-import time it constructs `GLiNERProvider()` and assigns `litellm.custom_provider_map = [{"provider": "gliner", "custom_handler": _provider}]`. `agent.py` imports `labels_ctx, threshold_ctx` from it specifically to trigger that registration. Don't remove that import even if linters call it unused, and don't lazy-import the module — LiteLLM needs the map populated before any `gliner/...` call.
+- **Importing `pii.gliner_provider` has side effects.** At module-import time it constructs `GLiNERProvider()` and assigns `litellm.custom_provider_map = [{"provider": "gliner", "custom_handler": _provider}]`. `agent.py` imports `labels_ctx, threshold_ctx` from it specifically to trigger that registration. Don't remove that import even if linters call it unused, and don't lazy-import the module — LiteLLM needs the map populated before any `gliner/...` call.
 
 - **GLiNER knobs ride contextvars, not kwargs.** `threshold_ctx` and `labels_ctx` in `gliner_provider.py` are set by `detect_entities` and read inside `_run_inference`. This is the only path that survives the Pydantic AI → LiteLLM → custom-provider hop without depending on version-specific kwarg plumbing. Always set them via `*_ctx.set(...)` + `try/finally` reset (see `detect_entities`); never pass threshold/labels as agent kwargs expecting them to arrive at the provider.
 
