@@ -24,7 +24,7 @@ from privatize_this_config import (
     normalize_model_id,
 )
 # Importing this module registers the gliner/ custom provider with LiteLLM.
-from ppi.gliner_provider import labels_ctx, threshold_ctx
+from pii.gliner_provider import labels_ctx, threshold_ctx
 
 
 class Entity(BaseModel):

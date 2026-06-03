@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """PII/PHI/PCI detection and anonymization — top-level entry point.
 
-The runtime logic lives in the `ppi` package. This module re-exports `app` and
+The runtime logic lives in the `pii` package. This module re-exports `app` and
 `main` so existing invocations keep working:
 
     uvicorn privatize_this:app --host 0.0.0.0 --port 8000
@@ -10,8 +10,8 @@ The runtime logic lives in the `ppi` package. This module re-exports `app` and
 
 from __future__ import annotations
 
-from ppi.api import app
-from ppi.cli import main
+from pii.api import app
+from pii.cli import main
 
 __all__ = ["app", "main"]
 

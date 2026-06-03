@@ -5,7 +5,7 @@ from typing import Literal, get_args
 
 ModelName = Literal[
     # GLiNER token-classification models, loaded in-process via the LiteLLM
-    # custom provider registered in ppi.gliner_provider.
+    # custom provider registered in pii.gliner_provider.
     "gliner/nvidia/gliner-PII",
     "gliner/urchade/gliner_multi_pii-v1",
     "gliner/knowledgator/gliner-pii-base-v1.0",

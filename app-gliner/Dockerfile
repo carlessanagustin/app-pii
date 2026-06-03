@@ -67,7 +67,7 @@ COPY --from=builder --chown=appuser:appgroup /hf-cache /hf-cache
 
 WORKDIR /app
 COPY --chown=appuser:appgroup privatize_this.py privatize_this_config.py ./
-COPY --chown=appuser:appgroup ppi ./ppi
+COPY --chown=appuser:appgroup pii ./pii
 
 # HF_HOME must match the path where the builder placed the model cache. Offline
 # flags prevent any runtime HF network egress, locking the GLiNER path to the

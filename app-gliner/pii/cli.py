@@ -10,8 +10,8 @@ from privatize_this_config import (
     DEFAULT_THRESHOLD,
     SUPPORTED_MODELS,
 )
-from ppi.agent import detect_entities
-from ppi.anonymize import EntitySpan, anonymize_text, iter_entity_labels
+from pii.agent import detect_entities
+from pii.anonymize import EntitySpan, anonymize_text, iter_entity_labels
 
 
 def parse_args() -> argparse.Namespace:
